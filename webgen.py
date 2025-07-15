@@ -1,18 +1,30 @@
 import json
 import sqlite3
 import time
+import os
 from datetime import datetime, timedelta
 from openai import OpenAI
 
 import requests
+
+# Load OpenAI API key from environment variable
+if not os.environ.get("OPENAI_API_KEY"):
+    print("ERROR: OPENAI_API_KEY environment variable is required")
+    exit(1)
+
 client = OpenAI()
 
 # WordPress site and credentials
 site_url = "https://socca.tech"
 api_url = f"{site_url}/wp-json/wp/v2/posts"
 categories_url = f"{site_url}/wp-json/wp/v2/categories"
-username = "ianrelecker"
-password = "nRTX y8ZZ vEXp B2W7 7z0t S84g"
+
+# Load WordPress credentials from environment variables
+username = os.environ.get("WORDPRESS_USERNAME", "ianrelecker")
+password = os.environ.get("WORDPRESS_PASSWORD")
+if not password:
+    print("ERROR: WORDPRESS_PASSWORD environment variable is required")
+    exit(1)
 
 # Authentication setup for basic auth
 auth = (username, password)

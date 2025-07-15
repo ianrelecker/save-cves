@@ -1,7 +1,5 @@
 # Kryptos Web Application (Legacy Version)
 
-> **IMPORTANT NOTE**: This is a very old version. A new version called **CVE-Processor** exists which replaces this codebase with significant improvements. The SQL database setup in this legacy version is suboptimal and not recommended for production use.
-
 ## Main Application
 
 The main application file is `mainv3.py`, which is the latest version of the code. This file handles fetching and processing CVE entries from the NVD API.
