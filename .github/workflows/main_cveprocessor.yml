@@ -16,7 +16,7 @@ env:
 
 jobs:
   build:
-    runs-on: self-hosted, ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read #This is required for actions/checkout
 
