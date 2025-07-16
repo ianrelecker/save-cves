@@ -17,6 +17,26 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import mainv3
 
+def log_custom_event(logger, event_name: str, properties: dict = None, measurements: dict = None):
+    """
+    Log custom events that will appear in Application Insights customEvents table
+    """
+    event_data = {
+        'event_name': event_name,
+        'timestamp': datetime.datetime.utcnow().isoformat(),
+        'properties': properties or {},
+        'measurements': measurements or {}
+    }
+    
+    # Log with structured format for Application Insights
+    logger.info(f"CUSTOM_EVENT: {event_name}", extra={
+        'custom_dimensions': {
+            'event_name': event_name,
+            'event_data': json.dumps(event_data),
+            **event_data['properties']
+        }
+    })
+
 def main(mytimer: func.TimerRequest) -> None:
     """
     Azure Function entry point for CVE processing
@@ -30,21 +50,17 @@ def main(mytimer: func.TimerRequest) -> None:
         tzinfo=datetime.timezone.utc).isoformat()
 
     # Log function start with context
-    logger.info(json.dumps({
-        'event': 'function_start',
+    log_custom_event(logger, 'function_start', {
         'execution_id': execution_id,
-        'timestamp': utc_timestamp,
         'trigger_type': 'timer',
-        'past_due': mytimer.past_due if mytimer else False
-    }))
+        'past_due': str(mytimer.past_due if mytimer else False)
+    })
 
     if mytimer and mytimer.past_due:
-        logger.warning(json.dumps({
-            'event': 'timer_past_due',
+        log_custom_event(logger, 'timer_past_due', {
             'execution_id': execution_id,
-            'timestamp': utc_timestamp,
             'message': 'Timer trigger is past due - may indicate performance issues'
-        }))
+        })
 
     # Track processing metrics
     start_time = datetime.datetime.utcnow()
@@ -58,11 +74,9 @@ def main(mytimer: func.TimerRequest) -> None:
     }
     
     try:
-        logger.info(json.dumps({
-            'event': 'cvs_processing_start',
-            'execution_id': execution_id,
-            'timestamp': utc_timestamp
-        }))
+        log_custom_event(logger, 'cve_processing_start', {
+            'execution_id': execution_id
+        })
         
         # Run the CVE polling process
         success = mainv3.poll_nvd()
@@ -74,20 +88,20 @@ def main(mytimer: func.TimerRequest) -> None:
         processing_result['success'] = success
         
         if success:
-            logger.info(json.dumps({
-                'event': 'cvs_processing_success',
+            log_custom_event(logger, 'cve_processing_success', {
                 'execution_id': execution_id,
-                'duration_seconds': processing_result['duration_seconds'],
-                'timestamp': end_time.isoformat()
-            }))
+                'status': 'success'
+            }, {
+                'duration_seconds': processing_result['duration_seconds']
+            })
         else:
-            logger.error(json.dumps({
-                'event': 'cvs_processing_failed',
+            log_custom_event(logger, 'cve_processing_failed', {
                 'execution_id': execution_id,
-                'duration_seconds': processing_result['duration_seconds'],
-                'timestamp': end_time.isoformat(),
+                'status': 'failed',
                 'message': 'CVE processing returned failure status'
-            }))
+            }, {
+                'duration_seconds': processing_result['duration_seconds']
+            })
             
     except Exception as e:
         end_time = datetime.datetime.utcnow()
@@ -96,31 +110,34 @@ def main(mytimer: func.TimerRequest) -> None:
         processing_result['error'] = str(e)
         
         # Log detailed error information
-        logger.error(json.dumps({
-            'event': 'cvs_processing_exception',
+        log_custom_event(logger, 'cve_processing_exception', {
             'execution_id': execution_id,
-            'duration_seconds': processing_result['duration_seconds'],
-            'timestamp': end_time.isoformat(),
             'error_message': str(e),
             'error_type': type(e).__name__,
             'traceback': traceback.format_exc()
-        }))
+        }, {
+            'duration_seconds': processing_result['duration_seconds']
+        })
         
         # Re-raise exception to ensure proper Azure Functions error handling
         raise
     
     finally:
         # Log final execution summary
-        logger.info(json.dumps({
-            'event': 'function_end',
-            'execution_summary': processing_result
-        }))
+        log_custom_event(logger, 'function_end', {
+            'execution_id': execution_id,
+            'final_status': 'success' if processing_result['success'] else 'failed',
+            'has_error': str(bool(processing_result.get('error')))
+        }, {
+            'duration_seconds': processing_result['duration_seconds'],
+            'cves_processed': processing_result['cves_processed']
+        })
         
         # Log performance metrics for monitoring
         if processing_result['duration_seconds'] > 300:  # 5 minutes
-            logger.warning(json.dumps({
-                'event': 'performance_warning',
+            log_custom_event(logger, 'performance_warning', {
                 'execution_id': execution_id,
-                'duration_seconds': processing_result['duration_seconds'],
                 'message': 'Function execution took longer than expected (>5min)'
-            }))
+            }, {
+                'duration_seconds': processing_result['duration_seconds']
+            })
