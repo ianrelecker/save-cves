@@ -41,27 +41,50 @@ class AzureSQLConnection:
         # Option 2: Build from individual components
         server = os.environ.get("AZURE_SQL_SERVER")
         database = os.environ.get("AZURE_SQL_DATABASE")
-        username = os.environ.get("AZURE_SQL_USERNAME")
-        password = os.environ.get("AZURE_SQL_PASSWORD")
         
-        if not all([server, database, username, password]):
+        if not all([server, database]):
             raise ValueError(
                 "Azure SQL connection parameters not found. Please set either:\n"
                 "1. AZURE_SQL_CONNECTION_STRING (full connection string), or\n"
-                "2. AZURE_SQL_SERVER, AZURE_SQL_DATABASE, AZURE_SQL_USERNAME, AZURE_SQL_PASSWORD"
+                "2. AZURE_SQL_SERVER and AZURE_SQL_DATABASE (for managed identity), or\n"
+                "3. AZURE_SQL_SERVER, AZURE_SQL_DATABASE, AZURE_SQL_USERNAME, AZURE_SQL_PASSWORD"
             )
         
-        # Build connection string
-        conn_str = (
-            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-            f"SERVER={server};"
-            f"DATABASE={database};"
-            f"UID={username};"
-            f"PWD={password};"
-            f"Encrypt=yes;"
-            f"TrustServerCertificate=no;"
-            f"Connection Timeout=30;"
-        )
+        # Check if we should use managed identity
+        use_managed_identity = os.environ.get("USE_MANAGED_IDENTITY", "false").lower() == "true"
+        username = os.environ.get("AZURE_SQL_USERNAME")
+        password = os.environ.get("AZURE_SQL_PASSWORD")
+        
+        if use_managed_identity or (not username and not password):
+            # Use managed identity authentication
+            conn_str = (
+                f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+                f"SERVER={server};"
+                f"DATABASE={database};"
+                f"Authentication=ActiveDirectoryMsi;"
+                f"Encrypt=yes;"
+                f"TrustServerCertificate=no;"
+                f"Connection Timeout=30;"
+            )
+            logger.info("Using managed identity authentication for Azure SQL")
+        else:
+            # Use username/password authentication
+            if not all([username, password]):
+                raise ValueError(
+                    "For username/password authentication, both AZURE_SQL_USERNAME and AZURE_SQL_PASSWORD must be set"
+                )
+            
+            conn_str = (
+                f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+                f"SERVER={server};"
+                f"DATABASE={database};"
+                f"UID={username};"
+                f"PWD={password};"
+                f"Encrypt=yes;"
+                f"TrustServerCertificate=no;"
+                f"Connection Timeout=30;"
+            )
+            logger.info("Using username/password authentication for Azure SQL")
         
         return conn_str
     
