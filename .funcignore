@@ -1,0 +1,12 @@
+.git*
+.vscode
+local.settings.json
+test
+.env
+.DS_Store
+*.pyc
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/

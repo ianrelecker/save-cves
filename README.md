@@ -1,66 +1,84 @@
-# Kryptos Web Application (Legacy Version)
+# CVE Data Processor API
 
-## Main Application
+## Overview
 
-The main application file is `mainv3.py`, which is the latest version of the code. This file handles fetching and processing CVE entries from the NVD API.
+REST API for CVE data processing and management, built for Azure App Service deployment with Azure SQL database integration.
+
+## Core Components
+
+- `app.py`: Flask REST API application
+- `nvdapi.py`: NVD API integration module
+- `azure_db.py`: Azure SQL database access layer
+- `azure_sql_schema.sql`: Database schema definition
 
 ## Environment Setup
 
-After removing hardcoded API keys for security reasons, you need to set up the following environment variables:
-
 ### Required Environment Variables
 
-- `NVD_API_KEY`: National Vulnerability Database API key
-- `OPENAI_API_KEY`: OpenAI API key for AI features
-- `GITHUB_TOKEN`: GitHub token for GitHub integration
-- `HUGGINGFACE_TOKEN`: Hugging Face token for AI model access
+#### Azure SQL Database Connection
+```bash
+export AZURE_SQL_CONNECTION_STRING="Server=tcp:yourserver.database.windows.net,1433;Database=yourdatabase;User ID=yourusername;Password=yourpassword;Encrypt=true;TrustServerCertificate=false;Connection Timeout=30;"
+```
 
-### Setting Environment Variables
-
-#### On Unix/Linux/macOS:
-
+#### API Keys
 ```bash
 export NVD_API_KEY="your-nvd-api-key-here"
-export OPENAI_API_KEY="your-openai-api-key-here"
-export GITHUB_TOKEN="your-github-token-here"
-export HUGGINGFACE_TOKEN="your-huggingface-token-here"
 ```
 
-#### On Windows:
+### Local Development
 
-```cmd
-setx NVD_API_KEY "your-nvd-api-key-here"
-setx OPENAI_API_KEY "your-openai-api-key-here"
-setx GITHUB_TOKEN "your-github-token-here"
-setx HUGGINGFACE_TOKEN "your-huggingface-token-here"
+```bash
+pip install -r requirements.txt
+python app.py
 ```
 
-## Files Organization
+### Azure App Service Deployment
 
-- `mainv3.py`: Main application file
-- `soccav5.py`: Current SOCCA analysis version
-- `nvdapi.py`: NVD API integration
-- `backup/`: Contains older versions and test files
-- `files/`: Contains configuration files and data
+1. Create Azure App Service (Python 3.9+)
+2. Configure environment variables in App Service settings
+3. Deploy code via Git or ZIP deployment
+4. App will auto-start using startup.sh
 
-## Database Information
+## API Endpoints
 
-The database setup in this application has several limitations that have been addressed in the newer CVE-Processor version:
+### Health Check
+- `GET /` - Service health status
 
-- Legacy database structure with suboptimal design
-- Simple SQLite implementation with basic queries
-- No complex relationships between tables
-- Limited error handling for database operations
+### CVE Operations
+- `GET /api/cves` - List recent CVEs
+  - Query params: `limit`, `offset`, `days`
+- `GET /api/cves/{cve_id}` - Get specific CVE
+- `GET /api/cves/search?q={query}` - Search CVEs
+- `POST /api/cves/sync` - Sync new CVEs from NVD
+  - Body: `{"days": 7}`
+- `GET /api/cves/stats` - Get CVE statistics
 
-The newer CVE-Processor version uses a more robust database design with proper schema definitions, consistent table structures, appropriate indexing, and better transaction management.
+### Example Usage
 
-## Database Files
+```bash
+# Get recent CVEs
+curl https://your-app.azurewebsites.net/api/cves?limit=10
 
-This project uses several SQLite database files that are already initialized with appropriate schemas:
+# Search for specific CVE
+curl https://your-app.azurewebsites.net/api/cves/CVE-2024-1234
 
-- `processed_cves.db`: Stores processed CVE entries
-- `cve_reports.db`: Contains detailed CVE reports
-- `posts.db`: Manages post data 
-- `kev_data.db`: Stores CISA Known Exploited Vulnerabilities (KEV) data
+# Sync new CVEs
+curl -X POST https://your-app.azurewebsites.net/api/cves/sync \
+  -H "Content-Type: application/json" \
+  -d '{"days": 7}'
+```
 
-If you need to reset these databases, simply delete the files and they will be recreated with empty schemas when the application runs.
+## Database Architecture
+
+Azure SQL Database with normalized tables:
+- `cve_entries` - CVE records with metadata
+- `processing_log` - Audit trail
+- `system_config` - Application configuration
+
+## Features
+
+- REST API for CVE data access
+- Automated CVE synchronization
+- Search and filtering capabilities
+- Azure App Service ready
+- CORS enabled for web clients

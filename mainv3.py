@@ -7,7 +7,6 @@ import os
 
 import nvdlib
 
-import soccav5
 from azure_db import get_database
 
 # Configure logging
@@ -170,18 +169,7 @@ def poll_nvd() -> bool:
                 
                 if success:
                     processed_count += 1
-                    
-                    # Trigger AI analysis
-                    try:
-                        # Extract data for analysis
-                        description = cve.descriptions[0].value if cve.descriptions else ""
-                        reference_urls = [ref.url for ref in cve.references] if cve.references else []
-                        
-                        # Call analysis function (updated to work with new database)
-                        soccav5.analyze_cve(cve.id, description, reference_urls)
-                        
-                    except Exception as e:
-                        logger.error(f"Failed to analyze CVE {cve.id}: {e}")
+                    logger.info(f"Successfully processed and stored CVE {cve.id}")
                 else:
                     logger.error(f"Failed to process CVE {cve.id}")
             else:
