@@ -17,10 +17,15 @@ logger = logging.getLogger(__name__)
 API_KEY = os.environ.get("NVD_API_KEY")
 if not API_KEY:
     logger.error("NVD_API_KEY environment variable is required")
-    exit(1)
+    # Don't exit during module import - let functions handle this gracefully
+    pass
 
-# Initialize database connection
-db = get_database()
+# Initialize database connection - handle errors gracefully
+try:
+    db = get_database()
+except Exception as e:
+    logger.error(f"Failed to initialize database: {e}")
+    db = None
 
 
 def parse_cvss_metrics(metrics) -> Dict[str, Any]:
